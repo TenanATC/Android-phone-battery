@@ -45,7 +45,8 @@ class BatteryViewModel(app: Application) : AndroidViewModel(app) {
             val windowHours = _state.value.historyWindowHours
             val result = try {
                 withContext(Dispatchers.IO) {
-                        // Record the live reading too, so opening the app improves resolution.
+                    val snapshot = BatteryReader.read(context)
+                    // Record the live reading too, so opening the app improves resolution.
                     snapshot?.let { BatteryHistoryStore.get(context).insert(it) }
 
                     val history = BatteryHistoryStore.get(context).samplesSince(
