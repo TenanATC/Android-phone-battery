@@ -58,6 +58,9 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
+          # Each line runs as a separate sh -c command, so no multi-line
+          # constructs here. pidof fails the job if the process died; the
+          # inverted grep fails it if logcat recorded a fatal exception.
           script: |
             adb logcat -c || true
             ./gradlew installDebug
@@ -65,9 +68,8 @@ jobs:
             sleep 25
             adb logcat -d > logcat.txt
             adb shell pidof com.tenan.batteryanalyzer
-            if grep -q "FATAL EXCEPTION" logcat.txt; then
-              echo "App crashed:"; grep -A 30 "FATAL EXCEPTION" logcat.txt; exit 1
-            fi
+            grep -A 30 "FATAL EXCEPTION" logcat.txt || true
+            ! grep -q "FATAL EXCEPTION" logcat.txt
             adb exec-out screencap -p > launch-screenshot.png
 
       - name: Upload smoke test evidence
