@@ -43,33 +43,37 @@ class BatteryViewModel(app: Application) : AndroidViewModel(app) {
         val context = getApplication<Application>()
         viewModelScope.launch {
             val windowHours = _state.value.historyWindowHours
-            val result = withContext(Dispatchers.IO) {
-                val snapshot = BatteryReader.read(context)
-                // Record the live reading too, so opening the app improves resolution.
-                snapshot?.let { BatteryHistoryStore.get(context).insert(it) }
+            val result = try {
+                withContext(Dispatchers.IO) {
+                        // Record the live reading too, so opening the app improves resolution.
+                    snapshot?.let { BatteryHistoryStore.get(context).insert(it) }
 
-                val history = BatteryHistoryStore.get(context).samplesSince(
-                    System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
-                )
-                val stats = BatteryAnalyzer.analyze(history, snapshot?.level)
-                val hasUsage = UsageStatsReader.hasPermission(context)
-                val topApps = if (hasUsage) UsageStatsReader.topApps(context, days = 7) else emptyList()
-                val profile = DeviceProfile.detect()
-                val suggestions = SuggestionEngine.generate(
-                    context, profile, snapshot, stats, topApps, hasUsage
-                )
-                UiState(
-                    loading = false,
-                    profile = profile,
-                    snapshot = snapshot,
-                    estimatedCapacityMah = snapshot?.let { BatteryReader.estimateFullCapacityMah(it) },
-                    history = history,
-                    stats = stats,
-                    suggestions = suggestions,
-                    topApps = topApps,
-                    hasUsagePermission = hasUsage,
-                    historyWindowHours = windowHours,
-                )
+                    val history = BatteryHistoryStore.get(context).samplesSince(
+                        System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                    )
+                    val stats = BatteryAnalyzer.analyze(history, snapshot?.level)
+                    val hasUsage = UsageStatsReader.hasPermission(context)
+                    val topApps = if (hasUsage) UsageStatsReader.topApps(context, days = 7) else emptyList()
+                    val profile = DeviceProfile.detect()
+                    val suggestions = SuggestionEngine.generate(
+                        context, profile, snapshot, stats, topApps, hasUsage
+                    )
+                    UiState(
+                        loading = false,
+                        profile = profile,
+                        snapshot = snapshot,
+                        estimatedCapacityMah = snapshot?.let { BatteryReader.estimateFullCapacityMah(it) },
+                        history = history,
+                        stats = stats,
+                        suggestions = suggestions,
+                        topApps = topApps,
+                        hasUsagePermission = hasUsage,
+                        historyWindowHours = windowHours,
+                    )
+                }
+            } catch (e: Exception) {
+                // Never let a bad system read crash the app; show what we have.
+                _state.value.copy(loading = false)
             }
             _state.value = result
         }

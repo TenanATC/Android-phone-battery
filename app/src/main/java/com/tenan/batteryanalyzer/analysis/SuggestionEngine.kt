@@ -40,11 +40,14 @@ object SuggestionEngine {
         val resolver = context.contentResolver
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
 
-        addScreenRules(out, resolver, context)
-        addDrainRules(out, stats, pm)
-        addChargingRules(out, profile, snapshot, stats)
-        addAppRules(out, profile, topApps, hasUsagePermission)
-        addMiscRules(out, resolver, context, profile)
+        // Each rule group reads system state that some OEM builds gate or
+        // remove; one group failing must never take the others (or the app)
+        // down, so failures degrade to "no suggestion from this group".
+        runCatching { addScreenRules(out, resolver, context) }
+        runCatching { addDrainRules(out, stats, pm) }
+        runCatching { addChargingRules(out, profile, snapshot, stats) }
+        runCatching { addAppRules(out, profile, topApps, hasUsagePermission) }
+        runCatching { addMiscRules(out, resolver, context, profile) }
 
         return out.sortedBy { it.severity.ordinal }
     }
