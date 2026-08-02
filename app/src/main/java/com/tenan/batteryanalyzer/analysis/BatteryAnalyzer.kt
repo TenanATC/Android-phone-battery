@@ -19,10 +19,12 @@ data class DrainStats(
     val hoursAtFullWhilePlugged: Double,
     /** Highest temperature seen in the window, °C */
     val maxTemperatureC: Float?,
-    /** Average temperature while charging, °C */
+    /** Average temperature while plugged in, °C */
     val avgChargingTemperatureC: Float?,
     /** Number of samples the stats are based on */
     val sampleCount: Int,
+    /** Samples recorded in the last 24h — a proxy for how healthy sampling is */
+    val samplesLast24h: Int,
 )
 
 object BatteryAnalyzer {
@@ -46,12 +48,14 @@ object BatteryAnalyzer {
             val dt = b.timestamp - a.timestamp
             if (dt <= MIN_SEGMENT_LENGTH || dt > MAX_SEGMENT_GAP) continue
 
-            if (a.isCharging && a.level >= 100 && b.isCharging) {
+            if (a.isPlugged && b.isPlugged && a.level >= 100) {
                 fullPluggedMs += dt
             }
 
-            // Discharge segments only: neither endpoint charging, level not rising.
-            if (a.isCharging || b.isCharging || b.level > a.level) continue
+            // Discharge segments only: cable disconnected at both ends, and the
+            // level did not rise. `isPlugged` is used rather than the battery
+            // status flag, which reports FULL/NOT_CHARGING while still on power.
+            if (a.isPlugged || b.isPlugged || b.level > a.level) continue
             val drop = (a.level - b.level).toDouble()
             totalDrop += drop
             totalMs += dt
@@ -72,8 +76,9 @@ object BatteryAnalyzer {
         val overall = rate(totalDrop, totalMs, minHours = 1.0)
         val deepDischarges = countDeepDischarges(history)
         val temps = history.map { it.temperatureC }.filter { it > 0f }
-        val chargingTemps = history.filter { it.isCharging && it.temperatureC > 0f }
+        val chargingTemps = history.filter { it.isPlugged && it.temperatureC > 0f }
             .map { it.temperatureC }
+        val dayAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
 
         return DrainStats(
             screenOnDrainPerHour = rate(screenOnDrop, screenOnMs, minHours = 0.5),
@@ -89,6 +94,7 @@ object BatteryAnalyzer {
                 (chargingTemps.sum() / chargingTemps.size)
             } else null,
             sampleCount = history.size,
+            samplesLast24h = history.count { it.timestamp >= dayAgo },
         )
     }
 
@@ -97,10 +103,10 @@ object BatteryAnalyzer {
         var count = 0
         var below = false
         for (s in history) {
-            if (!below && s.level < 15 && !s.isCharging) {
+            if (!below && s.level < 15 && !s.isPlugged) {
                 count++
                 below = true
-            } else if (s.level >= 20 || s.isCharging) {
+            } else if (s.level >= 20 || s.isPlugged) {
                 below = false
             }
         }

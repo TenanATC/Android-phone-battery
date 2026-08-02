@@ -10,18 +10,20 @@ import android.os.PowerManager
 /** Reads the current battery state from the system's sticky broadcast + BatteryManager. */
 object BatteryReader {
 
-    fun read(context: Context): BatterySnapshot? {
-        val intent = context.registerReceiver(
-            null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        ) ?: return null
+    fun read(context: Context): BatterySnapshot? =
+        fromIntent(
+            context,
+            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return null
+        )
 
+    /**
+     * Builds a snapshot from an ACTION_BATTERY_CHANGED intent — either the
+     * sticky broadcast or one delivered live to a receiver.
+     */
+    fun fromIntent(context: Context, intent: Intent): BatterySnapshot? {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         if (level < 0 || scale <= 0) return null
-
-        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-            status == BatteryManager.BATTERY_STATUS_FULL
 
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -33,8 +35,10 @@ object BatteryReader {
         return BatterySnapshot(
             timestamp = System.currentTimeMillis(),
             level = (level * 100) / scale,
-            isCharging = isCharging,
             plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0),
+            status = intent.getIntExtra(
+                BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN
+            ),
             temperatureC = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f,
             voltageMv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0),
             health = intent.getIntExtra(BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN),

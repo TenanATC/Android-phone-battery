@@ -20,8 +20,18 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -65,12 +75,15 @@ jobs:
             adb logcat -c || true
             ./gradlew installDebug
             adb shell am start -W -n com.tenan.batteryanalyzer/.MainActivity
-            sleep 25
+            sleep 20
+            adb exec-out screencap -p > launch-screenshot.png
+            adb shell monkey -p com.tenan.batteryanalyzer --pct-syskeys 0 --throttle 120 -v 250
+            sleep 5
+            adb exec-out screencap -p > after-interaction.png
             adb logcat -d > logcat.txt
             adb shell pidof com.tenan.batteryanalyzer
-            grep -A 30 "FATAL EXCEPTION" logcat.txt || true
+            grep -A 40 "FATAL EXCEPTION" logcat.txt || true
             ! grep -q "FATAL EXCEPTION" logcat.txt
-            adb exec-out screencap -p > launch-screenshot.png
 
       - name: Upload smoke test evidence
         if: always()
@@ -80,3 +93,4 @@ jobs:
           path: |
             logcat.txt
             launch-screenshot.png
+            after-interaction.png

@@ -54,7 +54,11 @@ fun DashboardScreen(state: UiState, modifier: Modifier = Modifier) {
                     Text(
                         when {
                             snap == null -> "Reading…"
-                            snap.isCharging -> "Charging" + pluggedLabel(snap.plugged)
+                            snap.isActivelyCharging -> "Charging" + pluggedLabel(snap.plugged)
+                            // Plugged in but not gaining charge: charge limit
+                            // reached, battery full, or thermally throttled.
+                            snap.isPluggedNotCharging ->
+                                "Plugged in · charging paused" + pluggedLabel(snap.plugged)
                             else -> "On battery"
                         },
                         style = MaterialTheme.typography.titleMedium,

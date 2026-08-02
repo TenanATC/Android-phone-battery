@@ -65,7 +65,7 @@ fun HistoryScreen(
                     state.stats.maxTemperatureC?.let { "%.1f °C".format(it) } ?: "—"
                 )
                 StatRow(
-                    "Avg temp while charging",
+                    "Avg temp while plugged in",
                     state.stats.avgChargingTemperatureC?.let { "%.1f °C".format(it) } ?: "—"
                 )
             }

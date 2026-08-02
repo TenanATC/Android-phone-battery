@@ -30,9 +30,18 @@ phone.
 ## How it works
 
 - A `WorkManager` periodic job samples the battery every 15 minutes (the
-  platform minimum) into a local SQLite database, and every app launch adds a
-  sample too. The sampler reads Android's sticky battery broadcast, so it
-  costs essentially nothing itself.
+  platform minimum) into a local SQLite database; a runtime
+  `ACTION_BATTERY_CHANGED` receiver adds finer-grained samples whenever the
+  process is alive, and every app launch adds one too. Sampling reads a
+  broadcast Android is already sending, so it wakes no radio, GPS, or sensor.
+- Because OEM background management (notably One UI's app sleep) defers the
+  periodic job for hours, the app reports its own sampling health and offers a
+  one-tap route to the battery-optimisation exemption when readings are sparse.
+- Charge state is derived from `EXTRA_PLUGGED`, not `EXTRA_STATUS`:
+  `BATTERY_STATUS_FULL` latches after a completed charge and can persist once
+  unplugged, and `BATTERY_STATUS_NOT_CHARGING` is reported while plugged in
+  with charging paused (charge caps, thermal throttling). Reading charge state
+  from the status flag mislabels discharges as charges.
 - `BatteryAnalyzer` converts the sample history into drain rates (%/hr,
   screen-on vs screen-off), a time-remaining estimate, deep-discharge counts,
   time held at 100% while plugged, and temperature patterns.

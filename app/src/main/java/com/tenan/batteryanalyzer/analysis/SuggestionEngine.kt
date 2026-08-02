@@ -48,6 +48,7 @@ object SuggestionEngine {
         runCatching { addChargingRules(out, profile, snapshot, stats) }
         runCatching { addAppRules(out, profile, topApps, hasUsagePermission) }
         runCatching { addMiscRules(out, resolver, context, profile) }
+        runCatching { addSamplingRules(out, context, profile, stats, pm) }
 
         return out.sortedBy { it.severity.ordinal }
     }
@@ -254,6 +255,60 @@ object SuggestionEngine {
                     "any you don't need running in the background, restrict them via " +
                     "${profile.backgroundLimitPath}. Social and video apps also poll in the " +
                     "background even when closed.",
+            )
+        }
+    }
+
+    // ---- Health of the app's own data collection -------------------------------
+
+    /**
+     * The analysis is only as good as the sample history behind it, and OEM
+     * background management is the main thing that starves it. Surface that
+     * directly instead of letting it show up as an unexplained gappy chart.
+     */
+    private fun addSamplingRules(
+        out: MutableList<Suggestion>,
+        context: Context,
+        profile: DeviceProfile,
+        stats: DrainStats,
+        pm: PowerManager,
+    ) {
+        val exempt = pm.isIgnoringBatteryOptimizations(context.packageName)
+
+        // 15-minute sampling would yield ~96 readings a day; treat well under
+        // half of that as the system deferring the job.
+        if (stats.samplesLast24h in 1 until 40) {
+            out += Suggestion(
+                id = "sparse_sampling",
+                severity = Severity.INFO,
+                title = "History is patchy (${stats.samplesLast24h} readings in 24h)",
+                detail = "This app aims for a reading every 15 minutes — about 96 a day — but " +
+                    "${profile.manufacturer}'s background limits have been deferring them, which " +
+                    "is why the chart shows gaps and dashed (inferred) stretches. " +
+                    (if (!exempt) {
+                        "Excluding this app from battery optimisation lets the sampler run on time."
+                    } else {
+                        "Opening the app periodically also fills in detail, since it samples " +
+                            "continuously while running."
+                    }),
+                settingsAction = if (!exempt) {
+                    Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                } else null,
+            )
+        }
+
+        if (!exempt) {
+            out += Suggestion(
+                id = "sampler_exempt",
+                severity = Severity.INFO,
+                title = "Let Battery Analyzer record without interruption",
+                detail = "Android is free to defer this app's 15-minute sampling job, which " +
+                    "leaves holes in the history and blunts the drain estimates. Setting it to " +
+                    "\"Not optimised\" fixes that. Reading the battery costs essentially nothing " +
+                    "— no radio, GPS, or sensor is woken — so the exemption does not cost you " +
+                    "runtime. On ${profile.manufacturer}, also check ${profile.backgroundLimitPath} " +
+                    "and keep this app off the sleeping list.",
+                settingsAction = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS,
             )
         }
     }
