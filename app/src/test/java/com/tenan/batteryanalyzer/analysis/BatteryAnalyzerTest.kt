@@ -5,6 +5,7 @@ import com.tenan.batteryanalyzer.data.BatterySnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.TimeUnit
@@ -160,15 +161,15 @@ class BatteryAnalyzerTest {
 
         val stats = BatteryAnalyzer.analyze(history, 40)
 
-        assertEquals(null, stats.overallDrainPerHour)
+        assertNull(stats.overallDrainPerHour)
     }
 
     @Test
     fun `empty history yields no rates rather than throwing`() {
         val stats = BatteryAnalyzer.analyze(emptyList(), null)
 
-        assertEquals(null, stats.overallDrainPerHour)
-        assertEquals(null, stats.estimatedHoursRemaining)
+        assertNull(stats.overallDrainPerHour)
+        assertNull(stats.estimatedHoursRemaining)
         assertEquals(0, stats.sampleCount)
         assertEquals(0, stats.samplesLast24h)
     }

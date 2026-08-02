@@ -10,11 +10,12 @@ import android.os.PowerManager
 /** Reads the current battery state from the system's sticky broadcast + BatteryManager. */
 object BatteryReader {
 
-    fun read(context: Context): BatterySnapshot? =
-        fromIntent(
-            context,
-            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return null
-        )
+    fun read(context: Context): BatterySnapshot? {
+        val sticky = context.registerReceiver(
+            null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        ) ?: return null
+        return fromIntent(context, sticky)
+    }
 
     /**
      * Builds a snapshot from an ACTION_BATTERY_CHANGED intent — either the
