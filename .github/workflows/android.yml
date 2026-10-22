@@ -61,24 +61,15 @@ jobs:
             extra1: "true"
             extra2: "true"
             extra3: "true"
-            extra4: "true"
-            extra5: "true"
-            extra6: "true"
-            extra7: "true"
           - module: equalizer
             package: com.tenan.equalizer
             # Simulate Spotify announcing its audio session and pressing its
-            # Equalizer button (targeted at this app explicitly: the emulator's
-            # built-in MusicFX otherwise wins the implicit intent), then switch
-            # the EQ on from the Quick Settings tile. extra5 fails the job if
-            # the engine service is not running; extra6/7 print what attached.
+            # Equalizer button (targeted at this app explicitly: the
+            # emulator's built-in MusicFX otherwise wins the implicit
+            # intent), then switch the EQ on and require the engine to run.
             extra1: "adb shell am broadcast -a android.media.action.OPEN_AUDIO_EFFECT_CONTROL_SESSION --ei android.media.extra.AUDIO_SESSION 4242 --es android.media.extra.PACKAGE_NAME com.spotify.music"
             extra2: "adb shell am start -W -n com.tenan.equalizer/.MainActivity -a android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL_PANEL --ei android.media.extra.AUDIO_SESSION 4242 --es android.media.extra.PACKAGE_NAME com.spotify.music"
-            extra3: "adb shell cmd statusbar add-tile com.tenan.equalizer/.engine.EqTileService || true"
-            extra4: "adb shell cmd statusbar click-tile com.tenan.equalizer/.engine.EqTileService || true"
-            extra5: "adb shell dumpsys activity services com.tenan.equalizer/.engine.EqService | grep -E 'ServiceRecord|isForeground'"
-            extra6: "adb logcat -d -s EffectChain:V EqService:V || true"
-            extra7: "adb shell dumpsys media.audio_flinger | grep -iE 'session 4242|Dynamics Processing|DynamicsProcessing' || true"
+            extra3: "python3 .github/scripts/eq_smoke.py"
     steps:
       - uses: actions/checkout@v4
 
@@ -116,11 +107,6 @@ jobs:
             ${{ matrix.extra1 }}
             ${{ matrix.extra2 }}
             ${{ matrix.extra3 }}
-            ${{ matrix.extra4 }}
-            sleep 5
-            ${{ matrix.extra5 }}
-            ${{ matrix.extra6 }}
-            ${{ matrix.extra7 }}
             adb exec-out screencap -p > after-intents.png
             adb shell monkey -p ${{ matrix.package }} --pct-syskeys 0 --throttle 120 -v 250
             sleep 5

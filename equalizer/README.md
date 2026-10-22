@@ -95,4 +95,5 @@ Unit tests (`./gradlew :equalizer:testDebugUnitTest`) cover the DSP math,
 AutoEq parsing, Beats identification, dumpsys parsing, session bookkeeping
 and config persistence. CI also boots an emulator, simulates Spotify
 announcing a session and pressing its Equalizer button, switches the EQ on
-from the Quick Settings tile, and fails on any crash.
+through its UI, and fails unless the engine service is running (or on any
+crash).
