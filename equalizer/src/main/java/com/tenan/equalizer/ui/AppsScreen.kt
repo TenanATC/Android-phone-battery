@@ -139,8 +139,9 @@ fun AppsScreen(state: EqUiState, viewModel: EqViewModel, modifier: Modifier = Mo
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Using it with your apps", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Hint(
-                    "Spotify: Settings → Playback → Equalizer now opens this app. Leave Spotify's " +
-                        "own equalizer off so the two don't stack."
+                    "Spotify: Settings → Playback → Equalizer opens this app — or, on phones with a " +
+                        "built-in equalizer, asks which to use or opens the built-in one. Either way " +
+                        "Studio EQ still processes Spotify's audio; just don't enable both EQs at once."
                 )
                 Hint(
                     "Podbean and other podcast apps: start an episode, then check \"Now equalising\". " +

@@ -16,7 +16,7 @@ on-device: no `INTERNET` permission, no accounts.
 | **Beats** | Recognises Studio Buds/Buds +, Fit Pro, Solo Buds, Powerbeats Pro/Pro 2, Flex, Solo 4/Pro/3, Studio Pro/3 and Pill from the Bluetooth name; shows the headset battery level; offers a family-matched correction; model-specific tips |
 | **Headphone correction** | Built-in starting points for each Beats family and the phone speaker, or import an **AutoEq** profile (GraphicEQ or ParametricEQ text) for a measured correction of your exact model |
 | **Per-app presets** | e.g. Podbean → *Podcast / Voice* while Spotify keeps your music curve; both still get the headphone correction |
-| **Integration** | Spotify's *Settings → Playback → Equalizer* opens this app; Quick Settings tile; status notification with an off switch; restarts after reboot |
+| **Integration** | Registers as an equalizer panel, so players' *Equalizer* buttons (Spotify: *Settings → Playback → Equalizer*) can open it; Quick Settings tile; status notification with an off switch; restarts after reboot |
 
 ## How it reaches other apps
 
@@ -72,7 +72,11 @@ paste it via **Device → Import AutoEq profile**.
    battery reading, and apply the suggested correction or import AutoEq.
 4. On **Apps**, give Podbean the *Podcast / Voice* preset. Start playback in
    Spotify and Podbean and check both appear under *Now equalising*.
-5. In Spotify, turn its built-in equalizer off so the two don't stack.
+5. Spotify's *Equalizer* button opens Studio EQ, but if your phone ships its
+   own equalizer (Samsung SoundAlive, AOSP MusicFX) Android may ask which to
+   use or open the built-in one. Pick Studio EQ, and don't run both EQs at
+   once. Studio EQ processes Spotify's audio regardless of which panel the
+   button opens.
 6. On Samsung and other aggressive battery managers, exempt the app from
    battery optimisation (button on the Apps tab).
 
