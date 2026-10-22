@@ -61,3 +61,6 @@ print("\n".join(l for l in flinger.splitlines() if re.search(r"4242|dynamics", l
 if not running:
     sys.exit("EqService is not running after switching the equalizer on")
 print("EqService is running")
+engine_log = adb("logcat", "-d", "-s", "EffectChain:V")
+failed = sorted(set(re.findall(r"(\w+) failed for session", engine_log)))
+print("Effects that failed to attach:", ", ".join(failed) if failed else "none")
