@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "BatteryAnalyzer"
 include(":app")
+include(":equalizer")

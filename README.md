@@ -1,3 +1,14 @@
+# Android phone apps
+
+This repository holds two independent Android apps, each built as its own APK:
+
+| Module | App | What it does |
+|--------|-----|--------------|
+| `app` | **Battery Analyzer** | Battery health, drain analysis and device-specific battery advice (below) |
+| `equalizer` | **Studio EQ** | System-wide equalizer for Spotify, Podbean and other players, with per-device profiles and Beats support — see [equalizer/README.md](equalizer/README.md) |
+
+`./gradlew assembleDebug` builds both; CI uploads each APK as an artifact.
+
 # Battery Analyzer
 
 An Android app that evaluates your phone's battery life and consumption, then

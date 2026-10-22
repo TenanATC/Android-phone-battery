@@ -26,23 +26,53 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Upload test report
+      - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-report
-          path: app/build/reports/tests/testDebugUnitTest
+          path: |
+            app/build/reports/tests/testDebugUnitTest
+            equalizer/build/reports/tests/testDebugUnitTest
 
-      - name: Upload APK
+      - name: Upload Battery Analyzer APK
         uses: actions/upload-artifact@v4
         with:
           name: battery-analyzer-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Upload Studio EQ APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-eq-debug-apk
+          path: equalizer/build/outputs/apk/debug/equalizer-debug.apk
+
   smoke-test:
-    name: Launch app on emulator
+    name: Launch ${{ matrix.module }} on emulator
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: app
+            package: com.tenan.batteryanalyzer
+            # No extra checks for the battery app.
+            extra1: "true"
+            extra2: "true"
+            extra3: "true"
+            extra4: "true"
+            extra5: "true"
+          - module: equalizer
+            package: com.tenan.equalizer
+            # Simulate Spotify announcing its audio session and pressing its
+            # Equalizer button, then switch the EQ on from the Quick Settings
+            # tile so the engine attaches real effects to that session.
+            extra1: "adb shell am broadcast -a android.media.action.OPEN_AUDIO_EFFECT_CONTROL_SESSION --ei android.media.extra.AUDIO_SESSION 4242 --es android.media.extra.PACKAGE_NAME com.spotify.music"
+            extra2: "adb shell am start -W -a android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL_PANEL --ei android.media.extra.AUDIO_SESSION 4242 --es android.media.extra.PACKAGE_NAME com.spotify.music"
+            extra3: "adb shell cmd statusbar add-tile com.tenan.equalizer/.engine.EqTileService || true"
+            extra4: "adb shell cmd statusbar click-tile com.tenan.equalizer/.engine.EqTileService || true"
+            extra5: "adb shell dumpsys activity services com.tenan.equalizer > eq-service.txt || true"
     steps:
       - uses: actions/checkout@v4
 
@@ -73,15 +103,22 @@ jobs:
           # inverted grep fails it if logcat recorded a fatal exception.
           script: |
             adb logcat -c || true
-            ./gradlew installDebug
-            adb shell am start -W -n com.tenan.batteryanalyzer/.MainActivity
+            ./gradlew :${{ matrix.module }}:installDebug
+            adb shell am start -W -n ${{ matrix.package }}/.MainActivity
             sleep 20
             adb exec-out screencap -p > launch-screenshot.png
-            adb shell monkey -p com.tenan.batteryanalyzer --pct-syskeys 0 --throttle 120 -v 250
+            ${{ matrix.extra1 }}
+            ${{ matrix.extra2 }}
+            ${{ matrix.extra3 }}
+            ${{ matrix.extra4 }}
+            sleep 5
+            ${{ matrix.extra5 }}
+            adb exec-out screencap -p > after-intents.png
+            adb shell monkey -p ${{ matrix.package }} --pct-syskeys 0 --throttle 120 -v 250
             sleep 5
             adb exec-out screencap -p > after-interaction.png
             adb logcat -d > logcat.txt
-            adb shell pidof com.tenan.batteryanalyzer
+            adb shell pidof ${{ matrix.package }}
             grep -A 40 "FATAL EXCEPTION" logcat.txt || true
             ! grep -q "FATAL EXCEPTION" logcat.txt
 
@@ -89,8 +126,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-test-evidence
+          name: smoke-test-evidence-${{ matrix.module }}
           path: |
             logcat.txt
             launch-screenshot.png
+            after-intents.png
             after-interaction.png
+            eq-service.txt

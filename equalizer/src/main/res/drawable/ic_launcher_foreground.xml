@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Five EQ faders inside the adaptive-icon safe zone (centre 66dp). -->
+    <path
+        android:fillColor="#A5B4FC"
+        android:pathData="M32,34 h4 v40 h-4 z M42,34 h4 v40 h-4 z M52,34 h4 v40 h-4 z M62,34 h4 v40 h-4 z M72,34 h4 v40 h-4 z" />
+    <path
+        android:fillColor="#F472B6"
+        android:pathData="M29,58 h10 v6 h-10 z M39,44 h10 v6 h-10 z M49,52 h10 v6 h-10 z M59,40 h10 v6 h-10 z M69,54 h10 v6 h-10 z" />
+</vector>

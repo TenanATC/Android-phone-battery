@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Studio EQ</string>
+    <string name="tile_label">Equalizer</string>
+    <string name="channel_name">Equalizer status</string>
+</resources>
