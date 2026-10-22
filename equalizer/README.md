@@ -96,4 +96,8 @@ AutoEq parsing, Beats identification, dumpsys parsing, session bookkeeping
 and config persistence. CI also boots an emulator, simulates Spotify
 announcing a session and pressing its Equalizer button, switches the EQ on
 through its UI, and fails unless the engine service is running (or on any
-crash).
+crash). The CI emulator has no audio output, so Android refuses to attach
+any audio effect there (including its own built-in Equalizer); the job log
+reports this, and the app carries on without crashing. Whether the EQ is
+audibly applied can only be checked on a real phone, which the **Apps** tab
+makes easy: each session it lists shows which engine attached.

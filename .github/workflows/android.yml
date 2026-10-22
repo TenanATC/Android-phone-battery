@@ -57,16 +57,12 @@ jobs:
         include:
           - module: app
             package: com.tenan.batteryanalyzer
-            emulator_options: "-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim"
             # No extra checks for the battery app.
             extra1: "true"
             extra2: "true"
             extra3: "true"
           - module: equalizer
             package: com.tenan.equalizer
-            # With -noaudio the audio server has no output, and every audio
-            # effect (even the platform Equalizer) fails with NO_INIT.
-            emulator_options: "-no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim"
             # Simulate Spotify announcing its audio session and pressing its
             # Equalizer button (targeted at this app explicitly: the
             # emulator's built-in MusicFX otherwise wins the implicit
@@ -99,7 +95,6 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          emulator-options: ${{ matrix.emulator_options }}
           # Each line runs as a separate sh -c command, so no multi-line
           # constructs here. pidof fails the job if the process died; the
           # inverted grep fails it if logcat recorded a fatal exception.
