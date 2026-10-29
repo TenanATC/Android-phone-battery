@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.PowerManager
 import androidx.core.content.ContextCompat
@@ -28,10 +29,13 @@ import com.tenan.equalizer.session.AppCategory
 import com.tenan.equalizer.session.KnownApps
 import com.tenan.equalizer.session.SessionSource
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -63,6 +67,8 @@ data class Environment(
     val ignoringBatteryOptimizations: Boolean = true,
     val spatialAudio: SpatialAudioStatus? = null,
     val audioApps: List<AppRow> = emptyList(),
+    /** Notification access lets Global mode follow the playing app's preset. */
+    val notificationAccess: Boolean = false,
     /** Set when a player's "Equalizer" button opened the app. */
     val openedFrom: String? = null,
 )
@@ -78,9 +84,15 @@ data class EqUiState(
     val effectivePreampDb: Float = 0f,
     val sessions: List<SessionRow> = emptyList(),
     val env: Environment = Environment(),
+    /** Some app is playing audio right now (whether or not it announced itself). */
+    val musicActive: Boolean = false,
+    /** The playing app, when its own preset is overriding the sliders. */
+    val following: Following? = null,
 ) {
     val settings: EqSettings get() = profile.settings
 }
+
+data class Following(val appName: String, val presetName: String)
 
 class EqViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as EqApp
@@ -89,18 +101,37 @@ class EqViewModel(application: Application) : AndroidViewModel(application) {
     // Filled from both the main thread and the IO app scan.
     private val labels = ConcurrentHashMap<String, String>()
 
-    private val deviceFlow = combine(app.outputs.current, app.outputs.battery) { d, b -> d to b }
+    private val deviceFlow = combine(app.outputs.current, app.outputs.battery, ::Pair)
+    private val sessionFlow = combine(app.sessions.sessions, app.engineStatus, ::Pair)
+
+    private val audioManager = application.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    // No callback exists for "any app started playing", so poll while the UI is visible.
+    private val musicActive = flow {
+        while (true) {
+            emit(audioManager.isMusicActive)
+            delay(2_000)
+        }
+    }.distinctUntilChanged()
+    private val playbackFlow = combine(app.nowPlaying.nowPlaying, musicActive, ::Pair)
 
     val state: StateFlow<EqUiState> = combine(
-        repository.config, deviceFlow, app.sessions.sessions, app.engineStatus, env,
-    ) { config, (device, battery), sessions, status, environment ->
+        repository.config, deviceFlow, sessionFlow, playbackFlow, env,
+    ) { config, (device, battery), (sessions, status), (nowPlaying, active), environment ->
         val profile = config.profileFor(device)
         val correction = Corrections.resolve(profile.correction)
         val plan = ProcessingPlan.build(profile.settings, null, correction)
+        val followedPreset = nowPlaying?.let { config.appPresets[it] }?.let { config.preset(it)?.name }
+        val following = if (
+            followedPreset != null && (config.mode == AttachMode.GLOBAL ||
+                sessions.values.any { it.packageName == nowPlaying })
+        ) Following(label(nowPlaying), followedPreset) else null
         val rows = when (config.mode) {
             AttachMode.GLOBAL -> listOf(
-                SessionRow(EqService.GLOBAL_SESSION, "All apps (global mix)", null, null,
-                    status[EqService.GLOBAL_SESSION], null)
+                SessionRow(
+                    EqService.GLOBAL_SESSION,
+                    "All apps (global mix)" + (nowPlaying?.let { " · playing: ${label(it)}" } ?: ""),
+                    nowPlaying, null, status[EqService.GLOBAL_SESSION], followedPreset,
+                )
             )
             AttachMode.PER_APP -> sessions.values.sortedBy { it.sessionId }.map { s ->
                 SessionRow(
@@ -120,11 +151,15 @@ class EqViewModel(application: Application) : AndroidViewModel(application) {
             effectivePreampDb = plan.preampDb,
             sessions = rows,
             env = environment,
+            musicActive = active,
+            following = following,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EqUiState())
 
     fun refreshEnvironment() {
         app.outputs.refresh()
+        // Picks up Notification access granted while the user was in Settings.
+        app.nowPlaying.start()
         viewModelScope.launch {
             val ctx = getApplication<Application>()
             val apps = withContext(Dispatchers.IO) { installedAudioApps() }
@@ -138,6 +173,7 @@ class EqViewModel(application: Application) : AndroidViewModel(application) {
                     ignoringBatteryOptimizations = power.isIgnoringBatteryOptimizations(ctx.packageName),
                     spatialAudio = app.outputs.spatialAudio(),
                     audioApps = apps,
+                    notificationAccess = app.nowPlaying.hasAccess(),
                 )
             }
         }

@@ -6,6 +6,7 @@ import com.tenan.equalizer.data.EqRepository
 import com.tenan.equalizer.device.OutputDeviceMonitor
 import com.tenan.equalizer.engine.EngineStatus
 import com.tenan.equalizer.engine.EqService
+import com.tenan.equalizer.session.NowPlayingMonitor
 import com.tenan.equalizer.session.SessionRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,8 @@ class EqApp : Application() {
         private set
     lateinit var outputs: OutputDeviceMonitor
         private set
+    lateinit var nowPlaying: NowPlayingMonitor
+        private set
     val sessions = SessionRegistry()
 
     /** Published by [EqService]: what each attached session is running. */
@@ -34,6 +37,7 @@ class EqApp : Application() {
         super.onCreate()
         repository = EqRepository(this)
         outputs = OutputDeviceMonitor(this).also { it.start() }
+        nowPlaying = NowPlayingMonitor(this).also { it.start() }
         sessions.restoreAnnounced(repository.loadAnnouncedSessions())
 
         appScope.launch {

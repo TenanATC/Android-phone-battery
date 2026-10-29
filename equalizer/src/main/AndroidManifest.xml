@@ -79,6 +79,19 @@
                 android:value="true" />
         </service>
 
+        <!-- Enabled by the user under Settings → Notification access. Grants
+             the media-session list so Global mode can follow the playing
+             app's preset; notifications themselves are ignored. -->
+        <service
+            android:name=".session.MediaNotificationListener"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- Players broadcast these when they open/close an audio session. -->
         <receiver
             android:name=".session.SessionBroadcastReceiver"

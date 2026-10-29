@@ -74,9 +74,10 @@ class EqService : Service() {
         )
 
         scope.launch {
-            combine(app.repository.config, app.sessions.sessions, app.outputs.current) { c, s, d ->
-                Triple(c, s, d)
-            }.conflate().collect { (config, sessions, device) -> reconcile(config, sessions, device) }
+            combine(
+                app.repository.config, app.sessions.sessions, app.outputs.current, app.nowPlaying.nowPlaying,
+                ::Inputs,
+            ).conflate().collect { reconcile(it.config, it.sessions, it.device, it.nowPlaying) }
         }
         scope.launch { detectionLoop() }
     }
@@ -97,7 +98,16 @@ class EqService : Service() {
         super.onDestroy()
     }
 
-    private fun reconcile(config: EqConfig, sessions: Map<Int, AudioSessionInfo>, device: OutputDevice) {
+    /**
+     * @param nowPlaying the app playing most recently, if Notification access
+     *   is granted; in Global mode the whole mix takes on that app's preset.
+     */
+    private fun reconcile(
+        config: EqConfig,
+        sessions: Map<Int, AudioSessionInfo>,
+        device: OutputDevice,
+        nowPlaying: String?,
+    ) {
         if (!config.enabled) {
             releaseAll()
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -108,7 +118,7 @@ class EqService : Service() {
         val profile = config.profileFor(device)
         val correction = correctionFor(profile.correction)
         val targets: Map<Int, String?> = when (config.mode) {
-            AttachMode.GLOBAL -> mapOf(GLOBAL_SESSION to null)
+            AttachMode.GLOBAL -> mapOf(GLOBAL_SESSION to nowPlaying)
             AttachMode.PER_APP -> sessions.mapValues { it.value.packageName }
         }
 
@@ -125,7 +135,10 @@ class EqService : Service() {
 
         val presetName = config.preset(profile.settings.presetId)?.name ?: "Custom"
         val where = when (config.mode) {
-            AttachMode.GLOBAL -> "all apps"
+            AttachMode.GLOBAL -> nowPlaying
+                ?.takeIf { config.appPresets[it] != null }
+                ?.let { "all apps · ${appLabel(it)}: ${config.preset(config.appPresets[it])?.name}" }
+                ?: "all apps"
             AttachMode.PER_APP -> when (val n = targets.size) {
                 0 -> "waiting for a player"
                 1 -> appLabel(targets.values.first())
@@ -212,6 +225,13 @@ class EqService : Service() {
             // Notifications denied; the service keeps running regardless.
         }
     }
+
+    private data class Inputs(
+        val config: EqConfig,
+        val sessions: Map<Int, AudioSessionInfo>,
+        val device: OutputDevice,
+        val nowPlaying: String?,
+    )
 
     companion object {
         private const val TAG = "EqService"

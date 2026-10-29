@@ -72,6 +72,17 @@ fun EqualizerScreen(
             }
         }
 
+        state.following?.takeIf { state.config.enabled }?.let { f ->
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                Text(
+                    "${f.appName} is playing with its own preset (${f.presetName}). The sliders " +
+                        "below are this device's curve for other apps; change ${f.appName}'s preset on the Apps tab.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        }
+
         // Master switch and where the EQ is acting.
         Card {
             Row(
@@ -263,7 +274,8 @@ private fun SavePresetDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
 private fun statusLine(state: EqUiState): String {
     if (!state.config.enabled) return "Off"
     return when (state.config.mode) {
-        AttachMode.GLOBAL -> "On · all apps (global mix)"
+        AttachMode.GLOBAL -> "On · all apps (global mix)" +
+            (state.following?.let { " · ${it.appName}: ${it.presetName}" } ?: "")
         AttachMode.PER_APP -> when (val n = state.sessions.size) {
             0 -> "On · start playback in any app"
             1 -> "On · ${state.sessions.first().appName}"

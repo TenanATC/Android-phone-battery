@@ -1,7 +1,11 @@
 package com.tenan.equalizer.ui
 
+import android.content.ActivityNotFoundException
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +19,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -39,6 +44,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.tenan.equalizer.data.AttachMode
+import com.tenan.equalizer.session.MediaNotificationListener
 import com.tenan.equalizer.session.SessionSource
 
 @Composable
@@ -56,6 +62,14 @@ fun AppsScreen(state: EqUiState, viewModel: EqViewModel, modifier: Modifier = Mo
                 Text("Now equalising", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 when {
                     !state.config.enabled -> Hint("The equalizer is off.")
+                    state.sessions.isEmpty() && state.musicActive -> {
+                        Text(
+                            "Something is playing, but that app hasn't announced its audio " +
+                                "(Podbean doesn't), so Per-app mode can't reach it.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Button(onClick = { viewModel.setMode(AttachMode.GLOBAL) }) { Text("Switch to Global") }
+                    }
                     state.sessions.isEmpty() -> Hint(
                         "No player has an audio session yet. Start playback in Spotify, Podbean or " +
                             "any other app. If an app plays but never shows up here, turn on " +
@@ -90,9 +104,9 @@ fun AppsScreen(state: EqUiState, viewModel: EqViewModel, modifier: Modifier = Mo
                 Text("Per-app presets", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Hint(
                     "Give an app its own curve — e.g. Podcast / Voice for Podbean while Spotify " +
-                        "keeps your music EQ. The device's headphone correction and tone settings still apply. " +
-                        if (state.config.mode == AttachMode.GLOBAL) "Needs Per-app mode." else ""
+                        "keeps your music EQ. The device's headphone correction and tone settings still apply."
                 )
+                if (state.config.mode == AttachMode.GLOBAL) NotificationAccessNote(state)
                 if (state.env.audioApps.isEmpty()) Hint("None of the major audio apps are installed.")
                 state.env.audioApps.forEach { app ->
                     val current = state.config.appPresets[app.packageName]
@@ -126,8 +140,9 @@ fun AppsScreen(state: EqUiState, viewModel: EqViewModel, modifier: Modifier = Mo
                 ) { viewModel.setMode(AttachMode.PER_APP) }
                 ModeOption(
                     "Global",
-                    "Attaches to the phone's whole output mix. Reaches any app without setup, but " +
-                        "one curve for everything, and some phones ignore it.",
+                    "Attaches to the phone's whole output mix. Reaches any app without setup, " +
+                        "including Podbean. One curve at a time: with Notification access it switches " +
+                        "to the playing app's preset. Some phones ignore the global mix.",
                     state.config.mode == AttachMode.GLOBAL,
                 ) { viewModel.setMode(AttachMode.GLOBAL) }
             }
@@ -172,6 +187,62 @@ fun AppsScreen(state: EqUiState, viewModel: EqViewModel, modifier: Modifier = Mo
                 }
             }
         }
+    }
+}
+
+/**
+ * Global mode can only follow the playing app with Notification access, and
+ * Android 13+ blocks that switch for sideloaded apps until "Allow restricted
+ * settings" is turned on in App info.
+ */
+@Composable
+private fun NotificationAccessNote(state: EqUiState) {
+    val context = LocalContext.current
+    if (state.env.notificationAccess) {
+        Text(
+            "Global mode: the whole mix switches to the playing app's preset.",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(vertical = 4.dp),
+        )
+        return
+    }
+    Column(Modifier.padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            "In Global mode these need Notification access, so Studio EQ can see which app is " +
+                "playing. It only reads the media controls, never your notifications' contents, and " +
+                "the app has no internet access.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Button(onClick = { openNotificationAccess(context) }) { Text("Allow notification access") }
+        if (Build.VERSION.SDK_INT >= 33) {
+            Hint(
+                "If Android says \"Restricted setting\": open App info, tap ⋮ (top right) → " +
+                    "Allow restricted settings, then try again. Android does this for apps installed " +
+                    "from outside the Play Store."
+            )
+            OutlinedButton(onClick = {
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                        .setData(Uri.fromParts("package", context.packageName, null))
+                )
+            }) { Text("App info") }
+        }
+    }
+}
+
+private fun openNotificationAccess(context: Context) {
+    val component = ComponentName(context, MediaNotificationListener::class.java)
+    val detail = if (Build.VERSION.SDK_INT >= 30) {
+        Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+            .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, component.flattenToString())
+    } else {
+        null
+    }
+    try {
+        context.startActivity(detail ?: Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+    } catch (e: ActivityNotFoundException) {
+        // Some phones lack the per-app detail screen; the list always exists.
+        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }
 }
 

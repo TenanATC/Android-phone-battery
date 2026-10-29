@@ -15,7 +15,7 @@ on-device: no `INTERNET` permission, no accounts.
 | **Per-device profiles** | Each output (Beats, car, wired, phone speaker…) keeps its own EQ and loads automatically when it connects |
 | **Beats** | Recognises Studio Buds/Buds +, Fit Pro, Solo Buds, Powerbeats Pro/Pro 2, Flex, Solo 4/Pro/3, Studio Pro/3 and Pill from the Bluetooth name; shows the headset battery level; offers a family-matched correction; model-specific tips |
 | **Headphone correction** | Built-in starting points for each Beats family and the phone speaker, or import an **AutoEq** profile (GraphicEQ or ParametricEQ text) for a measured correction of your exact model |
-| **Per-app presets** | e.g. Podbean → *Podcast / Voice* while Spotify keeps your music curve; both still get the headphone correction |
+| **Per-app presets** | e.g. Podbean → *Podcast / Voice* while Spotify keeps your music curve; both still get the headphone correction. In Global mode the mix follows whichever app is playing (needs Notification access) |
 | **Integration** | Registers as an equalizer panel, so players' *Equalizer* buttons (Spotify: *Settings → Playback → Equalizer*) can open it; Quick Settings tile; status notification with an off switch; restarts after reboot |
 
 ## How it reaches other apps
@@ -38,12 +38,19 @@ mechanisms, and so does this one:
    ```
 
 3. **Global mode** — attaches to the phone's whole output mix (session 0).
-   Works for any app with no setup, but applies one curve to everything (no
-   per-app presets), and some phone firmwares ignore it.
+   Works for any app with no setup (this is how Podbean is reached without
+   advanced detection), and some phone firmwares ignore it. It applies one
+   curve at a time; with **Notification access** turned on it follows the
+   playing app, switching the whole mix to that app's preset as you move
+   between Podbean and Spotify. Studio EQ uses that access only to see the
+   media controls players publish, never notification contents, and has no
+   internet permission. On Android 13+, a sideloaded app must first be
+   allowed *restricted settings* (App info → ⋮ → Allow restricted settings).
 
 The **Apps** tab lists every session currently being equalised and how it was
-found, so you can see at a glance whether Podbean is covered. If it isn't
-listed while playing, grant advanced detection or switch to Global mode.
+found, so you can see at a glance whether Podbean is covered. If something is
+playing but nothing is listed, the tab says so and offers a one-tap switch to
+Global mode.
 
 ## Beats: what's possible and what isn't
 
